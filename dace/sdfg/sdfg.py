@@ -438,6 +438,9 @@ class SDFG(OrderedDiGraph[SDFGState, InterstateEdge]):
         # Counter to resolve name conflicts
         self._orig_name = name
         self._num = 0
+        
+        # Tasking backend
+        self._use_tasking = False
 
     @property
     def sdfg_id(self):
@@ -2681,6 +2684,12 @@ class SDFG(OrderedDiGraph[SDFGState, InterstateEdge]):
            :return: a Memlet that fully transfers array
         """
         return dace.Memlet.from_array(array, self.data(array))
+    
+    def activate_tasking(self):
+        self._use_tasking = True
+
+    def deactivate_tasking(self):
+        self._use_tasking = False
 
 
 def _get_optimizer_class(class_override):
