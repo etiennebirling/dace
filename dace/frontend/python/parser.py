@@ -256,6 +256,10 @@ class DaceProgram(pycommon.SDFGConvertible):
 
         sdfg = self._parse(args, kwargs, simplify=simplify, save=save, validate=validate)
 
+        # Enable tasking by adding the argument use_tasking=True when calling to_sdfg.
+        if kwargs.get('use_tasking', False): 
+            sdfg.activate_tasking()
+
         if use_cache:
             # Add to cache
             self._cache.add(cachekey, sdfg, None)
@@ -268,6 +272,10 @@ class DaceProgram(pycommon.SDFGConvertible):
     def compile(self, *args, simplify=None, save=False, **kwargs):
         """ Convenience function that parses and compiles a DaCe program. """
         sdfg = self._parse(args, kwargs, simplify=simplify, save=save)
+
+        # Enable tasking by adding use_tasking=True to the decorator.
+        if self.dec_kwargs.get('use_tasking', False):
+            sdfg.activate_tasking()
 
         if self.recreate_sdfg:
             # Invoke auto-optimization as necessary
