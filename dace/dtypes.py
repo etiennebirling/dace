@@ -74,6 +74,7 @@ class ScheduleType(aenum.AutoNumberEnum):
     FPGA_Device = ()
     Snitch = ()
     Snitch_Multicore = ()
+    Tasking = ()
 
 
 # A subset of GPU schedule types
@@ -193,7 +194,8 @@ SCOPEDEFAULT_STORAGE = {
     ScheduleType.GPU_ThreadBlock_Dynamic: StorageType.Register,
     ScheduleType.FPGA_Device: StorageType.FPGA_Global,
     ScheduleType.SVE_Map: StorageType.CPU_Heap,
-    ScheduleType.Snitch: StorageType.Snitch_TCDM
+    ScheduleType.Snitch: StorageType.Snitch_TCDM,
+    ScheduleType.Tasking: StorageType.CPU_Heap
 }
 
 # Maps from ScheduleType to default ScheduleType for sub-scopes
@@ -212,7 +214,8 @@ SCOPEDEFAULT_SCHEDULE = {
     ScheduleType.FPGA_Device: ScheduleType.FPGA_Device,
     ScheduleType.SVE_Map: ScheduleType.Sequential,
     ScheduleType.Snitch: ScheduleType.Snitch,
-    ScheduleType.Snitch_Multicore: ScheduleType.Snitch_Multicore
+    ScheduleType.Snitch_Multicore: ScheduleType.Snitch_Multicore,
+    ScheduleType.Tasking: ScheduleType.CPU_Multicore
 }
 
 # Translation of types to C types

@@ -2099,3 +2099,57 @@ class CPUCodeGen(TargetCodeGenerator):
 
     def make_ptr_vector_cast(self, *args, **kwargs):
         return cpp.make_ptr_vector_cast(*args, **kwargs)
+
+
+
+@registry.autoregister_params(name='task')
+class TaskingLoop(TargetCodeGenerator):
+    def __init__(self, frame_codegen, sdfg):
+        self.frame = frame_codegen
+        self.dispatcher = frame_codegen.dispatcher
+        
+        self.dispatcher.register_map_dispatcher(dtypes.ScheduleType.Tasking, self)
+        
+    def generate_scope(self, sdfg: SDFG, scope: ScopeSubgraphView,
+                       state_id: int, function_stream: CodeIOStream,
+                       callsite_stream: CodeIOStream):
+        # The parameters here are:
+        # sdfg: The SDFG we are currently generating.
+        # scope: The subgraph of the state containing only the scope (map contents)
+        #        we want to generate the code for.
+        # state_id: The state in the SDFG the subgraph is taken from (i.e., 
+        #           `sdfg.node(state_id)` is the same as `scope.graph`)
+        # function_stream: A cursor to the global code (which can be used to define
+        #                  functions, hence the name).
+        # callsite_stream: A cursor to the current location in the code, most of
+        #                  the code is generated here.
+        
+        # We can get the map entry node from the scope graph
+        entry_node = scope.source_nodes()[0]
+        
+        
+        # Openmp task
+        callsite_stream.write('#pragma omp parallel')
+        callsite_stream.write('#pragma omp single ')
+        callsite_stream.write('{')
+
+        outer = True
+
+        for param, rng in zip(entry_node.map.params, entry_node.map.range):
+            begin, end, stride = (sym2cpp(r) for r in rng)
+            # SDFG, state, and graph nodes/edges to written code.
+            callsite_stream.write(f'''
+            for (auto {param} = {begin}; {param} <= {end}; {param} += {stride}) {{''',
+                                  sdfg, state_id, entry_node
+            )
+            # Inside outer loop spawn task
+            if (outer):
+                callsite_stream.write('#pragma omp task')
+            outer = False
+
+        
+        
+        self.dispatcher.dispatch_subgraph(sdfg, scope, state_id,
+                                          function_stream, callsite_stream,
+                                          skip_entry_node=True)
+        
