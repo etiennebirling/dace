@@ -173,7 +173,8 @@ def _scopes_with_tbmaps(state: SDFGState, scopes: List[nodes.EntryNode]):
 def _set_default_schedule_in_scope(parent_node: nodes.Node,
                                    parent_schedule: dtypes.ScheduleType,
                                    reverse_scope_dict: Dict[nodes.Node, List[nodes.Node]],
-                                   use_parent_schedule: bool = False):
+                                   use_parent_schedule: bool = False,
+                                   use_tasking= False):
     for node in reverse_scope_dict[parent_node]:
         if use_parent_schedule:
             child_schedule = parent_schedule
@@ -183,7 +184,10 @@ def _set_default_schedule_in_scope(parent_node: nodes.Node,
             child_schedule = dtypes.SCOPEDEFAULT_SCHEDULE[parent_schedule]
         # Set default schedule type
         if isinstance(node, nodes.MapEntry):
-            if node.map.schedule is dtypes.ScheduleType.Default:
+            # use tasking if user provided it.
+            if use_tasking:
+                node.map.schedule = dtypes.ScheduleType.Tasking
+            elif node.map.schedule is dtypes.ScheduleType.Default:
                 node.map.schedule = child_schedule
             # Also traverse children (recursively)
             _set_default_schedule_in_scope(node, node.map.schedule, reverse_scope_dict)
@@ -195,8 +199,14 @@ def _set_default_schedule_in_scope(parent_node: nodes.Node,
             _set_default_schedule_in_scope(node, node.consume.schedule, reverse_scope_dict)
         elif isinstance(node, nodes.NestedSDFG):
             # Nested SDFGs retain same schedule as their parent scope
-            if node.schedule is dtypes.ScheduleType.Default:
+            # Except if tasking is activated then we use the Tasking 
+            # Schedule
+            if use_tasking:
+                node.schedule = dtypes.ScheduleType.Tasking
+                node.sdfg._use_tasking = True
+            elif node.schedule is dtypes.ScheduleType.Default:
                 node.schedule = parent_schedule
+
             _set_default_schedule_types(node.sdfg, node.schedule)
         elif getattr(node, 'schedule', False):
             if node.schedule is dtypes.ScheduleType.Default:
@@ -209,7 +219,8 @@ def _set_default_schedule_types(sdfg: SDFG, toplevel_schedule: dtypes.ScheduleTy
         reverse_scope_dict = state.scope_children()
 
         # Start with top-level nodes and call recursively
-        _set_default_schedule_in_scope(None, toplevel_schedule, reverse_scope_dict, use_parent_schedule)
+        # TODO Maybe use a getter function for sdfg._use_tasking
+        _set_default_schedule_in_scope(None, toplevel_schedule, reverse_scope_dict, use_parent_schedule, sdfg._use_tasking)
 
 
 def _set_default_storage_types(sdfg: SDFG, toplevel_schedule: dtypes.ScheduleType):
