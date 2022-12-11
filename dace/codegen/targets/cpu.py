@@ -1765,18 +1765,53 @@ class CPUCodeGen(TargetCodeGenerator):
 
             if node.map.unroll:
                 result.write("#pragma unroll", sdfg, state_id, node)
+            #TODO: develop outer loop chunking here.
+            chunking=True
+            chunk_factor=10
+            if chunking:
+                relative_chunking=True
+                if relative_chunking:
+                    #possible choices: relative chunking (e.g. 1/4 of the loop, 1/2 of the loop, etc)
+                    #iterate from 0 to chunk_factor-1
+                    var_outer=var+"_outer"
+                    result.write(    
+                    "for (auto %s = 0; %s < %s; %s += 1) {\n" %
+                    (var_outer, var_outer, (chunk_factor), var_outer),
+                    sdfg,
+                    state_id,
+                    node,
+                    )
+                    
+                    if create_tasks:
+                        result.write("#pragma omp task")
+                        result.write("{")
+                        create_tasks = False
+                    result.write(    
+                        "for (auto %s = %s+%s*%s/%s; %s < %s+(%s+1)*%s/%s ; %s += %s) {\n" %
+                        (var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(chunk_factor),
+                        var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(chunk_factor),
+                        var, cpp.sym2cpp(skip)),
+                        sdfg,
+                        state_id,
+                        node,
+                    )
+                else:
+                    #absolute chunking (e.g. 1000 elements, 10000 elements, etc)
+                    #TODO: add branch: one more chunk (spawn task)? or just remainder (manual run)?
+                    pass
 
-            result.write(
-                "for (auto %s = %s; %s < %s; %s += %s) {\n" %
-                (var, cpp.sym2cpp(begin), var, cpp.sym2cpp(end + 1), var, cpp.sym2cpp(skip)),
-                sdfg,
-                state_id,
-                node,
-            )
-            if create_tasks:
-                result.write("#pragma omp task")
-                result.write("{")
-                create_tasks = False
+            else: 
+                result.write(    
+                    "for (auto %s = %s; %s < %s; %s += %s) {\n" %
+                    (var, cpp.sym2cpp(begin), var, cpp.sym2cpp(end + 1), var, cpp.sym2cpp(skip)),
+                    sdfg,
+                    state_id,
+                    node,
+                    )
+                if create_tasks:
+                    result.write("#pragma omp task")
+                    result.write("{")
+                    create_tasks = False
 
         callsite_stream.write(inner_stream.getvalue())
 
@@ -1808,7 +1843,9 @@ class CPUCodeGen(TargetCodeGenerator):
 
         for _ in map_node.map.range:
             result.write("}", sdfg, state_id, node)
-        
+        chunking = True
+        if chunking:
+            result.write("}", sdfg, state_id, node)
         if node.map.schedule == dtypes.ScheduleType.Tasking:
             result.write("}")
 
