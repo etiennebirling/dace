@@ -1778,55 +1778,51 @@ class CPUCodeGen(TargetCodeGenerator):
                     )
             if chunking:
                 var_outer=var+"_outer"
-                relative_chunking=True
+                relative_chunking=False
                 if create_tasks:
                     create_tasks=False;
                     if relative_chunking:
-                            #relative chunking (e.g. 1/4 of the loop, 1/2 of the loop, etc)
-                            #iterate from 0 to chunk_factor-1
-                            result.write(    
-                                "for (auto %s = 0; %s < %s; %s += 1) {\n" %
-                                (var_outer, var_outer, (chunk_factor), var_outer),
-                                sdfg,
-                                state_id,
-                                node,
-                            )
-                            result.write("#pragma omp task")
-                            result.write("{")
-                            create_tasks = False
-                            result.write(    
-                                "for (auto %s = %s+%s*%s/%s; %s < %s+(%s+1)*%s/%s ; %s += %s) {\n" %
-                                (var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(chunk_factor),
-                                var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(chunk_factor),
-                                var, cpp.sym2cpp(skip)),
-                                sdfg,
-                                state_id,
-                                node,
-                            )
-                    else:
-                        #absolute chunking (e.g. 1000 elements, 10000 elements, etc)
-                        #TODO: add branch: one more chunk (spawn task)? or just remainder (manual run)?
-                            result.write(    
-                            "for (auto %s = %s; %s < %s; %s += %s * %s) {\n" %
-                            (var_outer, cpp.sym2cpp(begin), var_outer, cpp.sym2cpp(end + 1), var_outer, cpp.sym2cpp(skip), chunk_factor),
+                        #relative chunking (e.g. 1/4 of the loop, 1/2 of the loop, etc)
+                        #iterate from 0 to chunk_factor-1
+                        result.write(    
+                            "for (auto %s = 0; %s < %s; %s += 1) {\n" %
+                            (var_outer, var_outer, (chunk_factor), var_outer),
                             sdfg,
                             state_id,
                             node,
-                            )
-                            if create_tasks:
-                                create_tasks=False;
-                                result.write("#pragma omp task")
-                                result.write("{")
-                                create_tasks = False
-                            result.write(    
-                                "for (auto %s = %s; %s < %s + %s * %s; %s += %s) {\n" %
-                                (var, cpp.sym2cpp(var_outer),
-                                var, cpp.sym2cpp(var_outer), cpp.sym2cpp(skip),chunk_factor, 
-                                var, cpp.sym2cpp(skip)),
-                                sdfg,
-                                state_id,
-                                node,
-                            )
+                        )
+                        result.write("#pragma omp task")
+                        result.write("{")
+                        result.write(    
+                            "for (auto %s = %s+%s*%s/%s; %s < %s+(%s+1)*%s/%s ; %s += %s) {\n" %
+                            (var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(chunk_factor),
+                            var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(chunk_factor),
+                            var, cpp.sym2cpp(skip)),
+                            sdfg,
+                            state_id,
+                            node,
+                        )
+                    else:
+                        #absolute chunking (e.g. 1000 elements, 10000 elements, etc)
+                        result.write(    
+                        "for (auto %s = %s; %s < %s; %s += %s * %s) {\n" %
+                        (var_outer, cpp.sym2cpp(begin), var_outer, cpp.sym2cpp(end + 1), var_outer, cpp.sym2cpp(skip), chunk_factor),
+                        sdfg,
+                        state_id,
+                        node,
+                        )
+                        result.write("#pragma omp task")
+                        result.write("{")
+                        #TODO: add preliminary test (if block) to only keep the smallest loop bound
+                        result.write(    
+                            "for (auto %s = %s; %s < %s + %s * %s && %s < %s; %s += %s) {\n" %
+                            (var, cpp.sym2cpp(var_outer),
+                            var, cpp.sym2cpp(var_outer), cpp.sym2cpp(skip),chunk_factor, var, cpp.sym2cpp(end + 1),
+                            var, cpp.sym2cpp(skip)),
+                            sdfg,
+                            state_id,
+                            node,
+                        )
                 else:
                     writebanalloop()
             else: 
