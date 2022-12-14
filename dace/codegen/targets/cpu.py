@@ -1766,8 +1766,6 @@ class CPUCodeGen(TargetCodeGenerator):
             if node.map.unroll:
                 result.write("#pragma unroll", sdfg, state_id, node)
             #TODO: develop outer loop chunking here.
-            chunking=True
-            chunk_factor=10
             def writebanalloop():
                 result.write(    
                     "for (auto %s = %s; %s < %s; %s += %s) {\n" %
@@ -1776,17 +1774,16 @@ class CPUCodeGen(TargetCodeGenerator):
                     state_id,
                     node,
                     )
-            if chunking:
+            if sdfg._tasking_chunking_mode is not None:
                 var_outer=var+"_outer"
                 relative_chunking=False
                 if create_tasks:
                     create_tasks=False;
-                    if relative_chunking:
+                    if sdfg._tasking_chunking_mode=='relative_fraction':
                         #relative chunking (e.g. 1/4 of the loop, 1/2 of the loop, etc)
-                        #iterate from 0 to chunk_factor-1
                         result.write(    
                             "for (auto %s = 0; %s < %s; %s += 1) {\n" %
-                            (var_outer, var_outer, (chunk_factor), var_outer),
+                            (var_outer, var_outer, (sdfg._tasking_chunking_granularity), var_outer),
                             sdfg,
                             state_id,
                             node,
@@ -1795,18 +1792,18 @@ class CPUCodeGen(TargetCodeGenerator):
                         result.write("{")
                         result.write(    
                             "for (auto %s = %s+%s*%s/%s; %s < %s+(%s+1)*%s/%s ; %s += %s) {\n" %
-                            (var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(chunk_factor),
-                            var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(chunk_factor),
+                            (var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(sdfg._tasking_chunking_granularity),
+                            var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(sdfg._tasking_chunking_granularity),
                             var, cpp.sym2cpp(skip)),
                             sdfg,
                             state_id,
                             node,
                         )
-                    else:
+                    elif sdfg._tasking_chunking_mode=='absolute_size':
                         #absolute chunking (e.g. 1000 elements, 10000 elements, etc)
                         result.write(    
                         "for (auto %s = %s; %s < %s; %s += %s * %s) {\n" %
-                        (var_outer, cpp.sym2cpp(begin), var_outer, cpp.sym2cpp(end + 1), var_outer, cpp.sym2cpp(skip), chunk_factor),
+                        (var_outer, cpp.sym2cpp(begin), var_outer, cpp.sym2cpp(end + 1), var_outer, cpp.sym2cpp(skip), sdfg._tasking_chunking_granularity),
                         sdfg,
                         state_id,
                         node,
@@ -1817,7 +1814,7 @@ class CPUCodeGen(TargetCodeGenerator):
                         result.write(    
                             "for (auto %s = %s; %s < %s + %s * %s && %s < %s; %s += %s) {\n" %
                             (var, cpp.sym2cpp(var_outer),
-                            var, cpp.sym2cpp(var_outer), cpp.sym2cpp(skip),chunk_factor, var, cpp.sym2cpp(end + 1),
+                            var, cpp.sym2cpp(var_outer), cpp.sym2cpp(skip),sdfg._tasking_chunking_granularity, var, cpp.sym2cpp(end + 1),
                             var, cpp.sym2cpp(skip)),
                             sdfg,
                             state_id,
@@ -1866,8 +1863,7 @@ class CPUCodeGen(TargetCodeGenerator):
         
         if node.map.schedule == dtypes.ScheduleType.Tasking:
             result.write("}")
-            chunking=True
-            if chunking:
+            if sdfg._tasking_chunking_mode is not None:
                 result.write("}", sdfg, state_id, node)
 
         result.write(outer_stream.getvalue())
