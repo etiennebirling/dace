@@ -190,7 +190,7 @@ def _set_default_schedule_in_scope(parent_node: nodes.Node,
             if use_tasking:
                 node.map.schedule = dtypes.ScheduleType.Tasking
                 if chunking_mode is not None:
-                    node.map.set_chunking_mode(mode=chunking_mode, gran=chunking_gran)
+                    node.map.set_tasking_chunking_mode(mode=chunking_mode, gran=chunking_gran)
             elif node.map.schedule is dtypes.ScheduleType.Default:
                 node.map.schedule = child_schedule
             # Also traverse children (recursively)
