@@ -174,7 +174,9 @@ def _set_default_schedule_in_scope(parent_node: nodes.Node,
                                    parent_schedule: dtypes.ScheduleType,
                                    reverse_scope_dict: Dict[nodes.Node, List[nodes.Node]],
                                    use_parent_schedule: bool = False,
-                                   use_tasking= False):
+                                   use_tasking= False,
+                                   chunking_mode = None,
+                                   chunking_gran = 10):
     for node in reverse_scope_dict[parent_node]:
         if use_parent_schedule:
             child_schedule = parent_schedule
@@ -187,6 +189,8 @@ def _set_default_schedule_in_scope(parent_node: nodes.Node,
             # use tasking if user provided it.
             if use_tasking:
                 node.map.schedule = dtypes.ScheduleType.Tasking
+                if chunking_mode is not None:
+                    node.map.set_chunking_mode(mode=chunking_mode, gran=chunking_gran)
             elif node.map.schedule is dtypes.ScheduleType.Default:
                 node.map.schedule = child_schedule
             # Also traverse children (recursively)
@@ -204,6 +208,8 @@ def _set_default_schedule_in_scope(parent_node: nodes.Node,
             if use_tasking:
                 node.schedule = dtypes.ScheduleType.Tasking
                 node.sdfg._use_tasking = True
+                node.sdfg._tasking_chunking_mode = chunking_mode
+                node.sdfg._tasking_chunking_granularity = chunking_gran
             elif node.schedule is dtypes.ScheduleType.Default:
                 node.schedule = parent_schedule
 
@@ -220,7 +226,7 @@ def _set_default_schedule_types(sdfg: SDFG, toplevel_schedule: dtypes.ScheduleTy
 
         # Start with top-level nodes and call recursively
         # TODO Maybe use a getter function for sdfg._use_tasking
-        _set_default_schedule_in_scope(None, toplevel_schedule, reverse_scope_dict, use_parent_schedule, sdfg._use_tasking)
+        _set_default_schedule_in_scope(None, toplevel_schedule, reverse_scope_dict, use_parent_schedule, sdfg._use_tasking, sdfg._tasking_chunking_mode, sdfg._tasking_chunking_granularity)
 
 
 def _set_default_storage_types(sdfg: SDFG, toplevel_schedule: dtypes.ScheduleType):

@@ -856,6 +856,8 @@ class Map(object):
         self.range = ndrange
         self.debuginfo = debuginfo
         self._fence_instrumentation = fence_instrumentation
+        self._tasking_chunking_mode = None
+        self._tasking_chunking_granularity = 30
 
     def __str__(self):
         return self.label + "[" + ", ".join(
@@ -872,6 +874,16 @@ class Map(object):
     def get_param_num(self):
         """ Returns the number of map dimension parameters/symbols. """
         return len(self.params)
+    
+    def activate_tasking(self):
+        self.schedule = dtypes.ScheduleType.Tasking
+    
+    def set_tasking_chunking_mode(self, mode, gran=10):
+        if mode in ['relative_fraction', 'absolute_size']:
+            self._tasking_chunking_mode = mode
+            self._tasking_chunking_granularity = gran
+        else:
+            raise ValueError('Invalid chunking mode: {}'.format(mode))
 
 
 # Indirect Map properties to MapEntry and MapExit

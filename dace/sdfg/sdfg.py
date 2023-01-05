@@ -2694,11 +2694,8 @@ class SDFG(OrderedDiGraph[SDFGState, InterstateEdge]):
         self._use_tasking = False
 
     def set_tasking_chunking_mode(self, mode, gran=10):
-        if mode in ['relative_fraction', 'absolute_size']:
-            self._tasking_chunking_mode = mode
-            self._tasking_chunking_granularity = gran
-        else:
-            raise ValueError('Invalid chunking mode: {}'.format(mode))
+        self._tasking_chunking_mode = mode
+        self._tasking_chunking_granularity = 10
 
 
 def _get_optimizer_class(class_override):

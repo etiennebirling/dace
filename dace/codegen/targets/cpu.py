@@ -1774,12 +1774,12 @@ class CPUCodeGen(TargetCodeGenerator):
                     state_id,
                     node,
                     )
-            if sdfg._tasking_chunking_mode is not None:
+            if node.map._tasking_chunking_mode is not None:
                 var_outer=var+"_outer"
                 relative_chunking=False
                 if create_tasks:
                     create_tasks=False;
-                    if sdfg._tasking_chunking_mode=='relative_fraction':
+                    if node.map._tasking_chunking_mode=='relative_fraction':
                         #relative chunking (e.g. 1/4 of the loop, 1/2 of the loop, etc)
                         result.write(    
                             "for (auto %s = 0; %s < %s; %s += 1) {\n" %
@@ -1792,18 +1792,18 @@ class CPUCodeGen(TargetCodeGenerator):
                         result.write("{")
                         result.write(    
                             "for (auto %s = %s+%s*%s/%s; %s < %s+(%s+1)*%s/%s ; %s += %s) {\n" %
-                            (var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(sdfg._tasking_chunking_granularity),
-                            var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(sdfg._tasking_chunking_granularity),
+                            (var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(node.map._tasking_chunking_granularity),
+                            var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(node.map._tasking_chunking_granularity),
                             var, cpp.sym2cpp(skip)),
                             sdfg,
                             state_id,
                             node,
                         )
-                    elif sdfg._tasking_chunking_mode=='absolute_size':
+                    elif node.map._tasking_chunking_mode=='absolute_size':
                         #absolute chunking (e.g. 1000 elements, 10000 elements, etc)
                         result.write(    
                         "for (auto %s = %s; %s < %s; %s += %s * %s) {\n" %
-                        (var_outer, cpp.sym2cpp(begin), var_outer, cpp.sym2cpp(end + 1), var_outer, cpp.sym2cpp(skip), sdfg._tasking_chunking_granularity),
+                        (var_outer, cpp.sym2cpp(begin), var_outer, cpp.sym2cpp(end + 1), var_outer, cpp.sym2cpp(skip), node.map._tasking_chunking_granularity),
                         sdfg,
                         state_id,
                         node,
@@ -1814,7 +1814,7 @@ class CPUCodeGen(TargetCodeGenerator):
                         result.write(    
                             "for (auto %s = %s; %s < %s + %s * %s && %s < %s; %s += %s) {\n" %
                             (var, cpp.sym2cpp(var_outer),
-                            var, cpp.sym2cpp(var_outer), cpp.sym2cpp(skip),sdfg._tasking_chunking_granularity, var, cpp.sym2cpp(end + 1),
+                            var, cpp.sym2cpp(var_outer), cpp.sym2cpp(skip),node.map._tasking_chunking_granularity, var, cpp.sym2cpp(end + 1),
                             var, cpp.sym2cpp(skip)),
                             sdfg,
                             state_id,
@@ -1863,7 +1863,7 @@ class CPUCodeGen(TargetCodeGenerator):
         
         if node.map.schedule == dtypes.ScheduleType.Tasking:
             result.write("}")
-            if sdfg._tasking_chunking_mode is not None:
+            if node.map._tasking_chunking_mode is not None:
                 result.write("}", sdfg, state_id, node)
 
         result.write(outer_stream.getvalue())
