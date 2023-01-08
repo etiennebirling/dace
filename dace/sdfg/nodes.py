@@ -828,6 +828,12 @@ class Map(object):
                               desc="OpenMP schedule chunk size",
                               optional=True,
                               optional_condition=lambda m: m.schedule == dtypes.ScheduleType.CPU_Multicore)
+    
+    omp_num_tasks = Property(dtype=int,
+                             default=0,
+                             desc="Number of OpenMP tasks executing the Map",
+                             optional=True,
+                             optional_condition=lambda m: m.schedule == dtypes.ScheduleType.CPU_Multicore)
 
     gpu_block_size = ListProperty(element_type=int,
                                   default=None,
@@ -856,8 +862,6 @@ class Map(object):
         self.range = ndrange
         self.debuginfo = debuginfo
         self._fence_instrumentation = fence_instrumentation
-        self._tasking_chunking_mode = None
-        self._tasking_chunking_granularity = 30
 
     def __str__(self):
         return self.label + "[" + ", ".join(
@@ -878,13 +882,6 @@ class Map(object):
     def activate_tasking(self):
         self.schedule = dtypes.ScheduleType.Tasking
     
-    def set_tasking_chunking_mode(self, mode, gran=10):
-        if mode in ['relative_fraction', 'absolute_size']:
-            self._tasking_chunking_mode = mode
-            self._tasking_chunking_granularity = gran
-        else:
-            raise ValueError('Invalid chunking mode: {}'.format(mode))
-
 
 # Indirect Map properties to MapEntry and MapExit
 MapEntry = indirect_properties(Map, lambda obj: obj.map)(MapEntry)

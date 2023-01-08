@@ -2695,7 +2695,7 @@ class SDFG(OrderedDiGraph[SDFGState, InterstateEdge]):
 
     def set_tasking_chunking_mode(self, mode, gran=10):
         self._tasking_chunking_mode = mode
-        self._tasking_chunking_granularity = 10
+        self._tasking_chunking_granularity = gran
 
 
 def _get_optimizer_class(class_override):

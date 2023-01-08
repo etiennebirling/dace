@@ -1745,9 +1745,16 @@ class CPUCodeGen(TargetCodeGenerator):
             map_header += " %s\n" % ", ".join(reduction_stmts)
         # code for using tasking
         elif node.map.schedule == dtypes.ScheduleType.Tasking:
-            map_header += '#pragma omp parallel\n'
-            map_header += '#pragma omp single\n{\n'
-            create_tasks = True
+            map_header += "#pragma omp taskloop"
+            if node.map.omp_chunk_size > 0:
+                map_header += f" grainsize({node.map.omp_chunk_size})"
+            if node.map.omp_num_tasks > 0:
+                map_header += f" num_tasks({node.map.omp_num_tasks})"
+            if node.map.collapse > 1:
+                map_header += ' collapse(%d)' % node.map.collapse
+            
+            reduction_stmts = []
+            map_header += " %s\n" % ", ".join(reduction_stmts)
 
         # TODO: Explicit map unroller
         if node.map.unroll:
@@ -1765,76 +1772,21 @@ class CPUCodeGen(TargetCodeGenerator):
 
             if node.map.unroll:
                 result.write("#pragma unroll", sdfg, state_id, node)
-            #TODO: develop outer loop chunking here.
-            def writebanalloop():
-                result.write(    
-                    "for (auto %s = %s; %s < %s; %s += %s) {\n" %
-                    (var, cpp.sym2cpp(begin), var, cpp.sym2cpp(end + 1), var, cpp.sym2cpp(skip)),
-                    sdfg,
-                    state_id,
-                    node,
-                    )
-            if node.map._tasking_chunking_mode is not None:
-                var_outer=var+"_outer"
-                relative_chunking=False
-                if create_tasks:
-                    create_tasks=False;
-                    if node.map._tasking_chunking_mode=='relative_fraction':
-                        #relative chunking (e.g. 1/4 of the loop, 1/2 of the loop, etc)
-                        result.write(    
-                            "for (auto %s = 0; %s < %s; %s += 1) {\n" %
-                            (var_outer, var_outer, (sdfg._tasking_chunking_granularity), var_outer),
-                            sdfg,
-                            state_id,
-                            node,
-                        )
-                        result.write("#pragma omp task")
-                        result.write("{")
-                        result.write(    
-                            "for (auto %s = %s+%s*%s/%s; %s < %s+(%s+1)*%s/%s ; %s += %s) {\n" %
-                            (var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(node.map._tasking_chunking_granularity),
-                            var, cpp.sym2cpp(begin),cpp.sym2cpp(var_outer),cpp.sym2cpp(end+1-begin),str(node.map._tasking_chunking_granularity),
-                            var, cpp.sym2cpp(skip)),
-                            sdfg,
-                            state_id,
-                            node,
-                        )
-                    elif node.map._tasking_chunking_mode=='absolute_size':
-                        #absolute chunking (e.g. 1000 elements, 10000 elements, etc)
-                        result.write(    
-                        "for (auto %s = %s; %s < %s; %s += %s * %s) {\n" %
-                        (var_outer, cpp.sym2cpp(begin), var_outer, cpp.sym2cpp(end + 1), var_outer, cpp.sym2cpp(skip), node.map._tasking_chunking_granularity),
-                        sdfg,
-                        state_id,
-                        node,
-                        )
-                        result.write("#pragma omp task")
-                        result.write("{")
-                        #TODO: add preliminary test (if block) to only keep the smallest loop bound
-                        result.write(    
-                            "for (auto %s = %s; %s < %s + %s * %s && %s < %s; %s += %s) {\n" %
-                            (var, cpp.sym2cpp(var_outer),
-                            var, cpp.sym2cpp(var_outer), cpp.sym2cpp(skip),node.map._tasking_chunking_granularity, var, cpp.sym2cpp(end + 1),
-                            var, cpp.sym2cpp(skip)),
-                            sdfg,
-                            state_id,
-                            node,
-                        )
-                else:
-                    writebanalloop()
-            else: 
-                #original code
-                writebanalloop()
-                if create_tasks:
-                    result.write("#pragma omp task")
-                    result.write("{")
-                    create_tasks = False
+            
+
+            result.write(
+                "for (auto %s = %s; %s < %s; %s += %s) {\n" %
+                (var, cpp.sym2cpp(begin), var, cpp.sym2cpp(end + 1), var, cpp.sym2cpp(skip)),
+                sdfg,
+                state_id,
+                node,
+            )
 
         callsite_stream.write(inner_stream.getvalue())
 
         # Emit internal transient array allocation
         self._frame.allocate_arrays_in_scope(sdfg, node, function_stream, result)
-
+            
     def _generate_MapExit(self, sdfg, dfg, state_id, node, function_stream, callsite_stream):
         result = callsite_stream
 
@@ -1861,20 +1813,11 @@ class CPUCodeGen(TargetCodeGenerator):
         for _ in map_node.map.range:
             result.write("}", sdfg, state_id, node)
         
-        if node.map.schedule == dtypes.ScheduleType.Tasking:
-            result.write("}")
-            if node.map._tasking_chunking_mode is not None:
-                result.write("}", sdfg, state_id, node)
-
         result.write(outer_stream.getvalue())
 
         callsite_stream.write('}', sdfg, state_id, node)
 
         
-
-        if node.map.schedule == dtypes.ScheduleType.Tasking:
-            result.write("}")
-
     def _generate_ConsumeEntry(
         self,
         sdfg,
